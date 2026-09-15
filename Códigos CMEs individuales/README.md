@@ -1,3 +1,5 @@
+Este script simula la evolución individual de una eyección de masa coronal (CME) desde su iniciación hasta su propagación en el medio interplanetario. Combina un modelo cinemático de dos fases (aceleración y decaimiento) para describir la posición, velocidad y aceleración de la CME en el tiempo, con una representación morfológica bidimensional en coordenadas polares que reconstruye su forma, densidad y campo de velocidad conforme se expande y avanza. La morfología incorpora asimetría angular, ruido de Fourier y filamentos generados aleatoriamente a partir de una semilla fija, buscando una apariencia más realista que una simple envolvente geométrica idealizada. El resultado son dos visualizaciones: los perfiles cinemáticos completos y un panel de instantáneas que muestra cómo se deforma y diluye la estructura de la CME a medida que se aleja del Sol.
+
 ## Parámetros de simulación
 
 ### Constantes físicas y de escala
