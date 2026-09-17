@@ -1,14 +1,14 @@
 # Sobre CME_combinadas.py
 
-Simulación cinemática y morfológica de la interacción entre dos CMEs homólogas (CME-1 "precursora" y CME-2 "sucesora") en el medio interplanetario. El código propaga ambas eyecciones, calcula sus campos de densidad y velocidad en coordenadas polares $(\theta, r)$, detecta el solapamiento entre sus perfiles, sintetiza el campo combinado en la zona de interacción (compresión) y, cuando el solapamiento es suficientemente denso, nuclea una **CME nueva** (producto de la fusión) que se propaga de forma independiente con frenado tipo DBM. Genera 4 salidas: cinemática conjunta, propagación polar (8 paneles), series temporales multipunto y un resumen numérico.
+Simulación cinemática y morfológica de la interacción entre dos CMEs homólogas (CME-1 "precursora" y CME-2 "sucesora") en el medio interplanetario. El código propaga ambas eyecciones, calcula sus perfiles cinemáticos y sus campos de densidad y velocidad en coordenadas polares $(\theta, r)$, detecta el solapamiento entre sus perfiles, sintetiza el campo combinado en la zona de interacción (compresión) y, cuando el solapamiento es suficientemente denso, crea una nueva nube de puntos (producto de la fusión) que se propaga de forma independiente, con su propia velocidad y densidad. Genera 4 salidas: cinemática conjunta, propagación polar (8 paneles), series temporales multipunto y un resumen numérico.
 
 ## 1. Modelo físico
 
 - **Aceleración de dos fases** (Gallagher et al. 2003): cada CME tiene una fase de aceleración impulsiva y una de frenado exponencial, combinadas en una sola función `aceleracion(s)`.
-- **Morfología no circular**: el frente (r_ext) y la retaguardia (r_int) de cada CME no son arcos concéntricos, sino perfiles deformados con armónicos de Fourier + filamentos + asimetría este-oeste + apertura angular tipo coseno.
+- **Morfología no circular**: el frente (r_ext) y la retaguardia (r_int) de cada CME no son arcos concéntricos, sino perfiles deformados aleatoriamente.
 - **Densidad**: perfil radial tipo gaussiano centrado en el frente (mayor compresión ahí), modulado angularmente y decayendo con la expansión (conservación aproximada de masa).
 - **Interacción/colisión**: donde los perfiles de ambas CMEs se solapan, la densidad no se suma aritméticamente (crearía masa) sino que se combina como promedio ponderado cuadrático (`densidad_solapada`), y la velocidad de la zona se calcula como **promedio ponderado por densidad** (`v_pond`), consistente con conservación de momento.
-- **CME nueva (producto de fusión)**: cuando el solapamiento es persistente y denso, se "nuclea" una tercera estructura (`CMENueva`) con geometría fija heredada del clúster de solapamiento en ese instante, que luego se propaga con un modelo de arrastre tipo DBM relajando hacia la velocidad del viento solar.
+- **CME nueva (producto de fusión)**: cuando el solapamiento es persistente y denso, se "nuclea" una tercera estructura (`CMENueva`) con geometría fija heredada del clúster de solapamiento en ese instante, que luego se propaga con un modelo de arrastre tipo DBM relajando hacia la velocidad del viento solar. _Nota:_ El termino `CMENueva` hace referencia a una nueva nube de puntos en la región de solapamiento, no a la producción de una nueva CME desde el Sol; solo es nomenclatura.
 
 ## 2. Parámetros globales
 
@@ -20,9 +20,8 @@ Simulación cinemática y morfológica de la interacción entre dos CMEs homólo
 | `T_HORAS` | Duración de la propagación a graficar (h) | `T_CALCULO_HORAS = max(T_HORAS, 95)` amplía el cálculo interno |
 | `FACTOR_ESCALA` | Factor km → $R_\odot$ (=`R_SOL_KM`) | Usado en `radio_inter`, `CMENueva.radio` |
 | `V_VIENTO_SOLAR` | Velocidad asintótica del viento solar (km/s) | Velocidad hacia la que relaja toda CME nueva |
-| `VENTANA_SUAV` | Sigma del suavizado gaussiano de las series temporales | `scipy.ndimage.gaussian_filter1d` |
-| `semilla1`, `semilla2` | Semillas RNG de la morfología de CME-1 y CME-2 | Reproducibilidad de Fourier/filamentos |
-| `RETRASO_CME2` | Retardo de lanzamiento de CME-2 respecto a CME-1 (s) | = `cme2.t0` |
+| `semilla1`, `semilla2` | Semillas de la morfología de CME-1 y CME-2 | Reproducibilidad |
+| `RETRASO_CME2` | Retardo de lanzamiento de CME-2 respecto a CME-1 (s) | |
 | `FACTOR_COMPRESION` | Factor de compresión adicional en la zona de solapamiento | Multiplica la densidad combinada |
 | `DMIN_OVERRIDE`, `DMAX_OVERRIDE` | Límites fijos de la escala de color $\log_{10}(\rho)$ | Si `None`, se calculan del máximo real |
 | `N_PUNTOS_OBS` | Nº de puntos radiales donde se muestrean series temporales | Entre `R_OBS_MIN` y `R_OBS_MAX` |
@@ -35,7 +34,7 @@ Genera el contorno deformado (frente/retaguardia) y el campo de velocidad unitar
 | Método | Descripción |
 |---|---|
 | `forma(th, r_cme)` | Devuelve `(r_ext, r_int)`: radios de frente y retaguardia por ángulo `th`, combinando forma base + Fourier + filamentos + ventana angular de apertura. |
-| `_vel_vec_base` | Campo vectorial de velocidad `(U, V)` en cartesianas, con perfil angular tipo $(1+\cos\theta)^{2.5}$ y componente tangencial pequeña. |
+| `_vel_vec_base` | Campo vectorial de velocidad `(U, V)` en cartesianas |
 
 ### `CME` (CME-1 y CME-2, "originales")
 
@@ -47,9 +46,6 @@ Genera el contorno deformado (frente/retaguardia) y el campo de velocidad unitar
 | `R0` | Radio de referencia usado en la normalización de densidad (en $R_\odot$) |
 | `t0` | Instante de lanzamiento (s); permite el retraso de CME-2 |
 | `semilla`, `color` | Semilla morfológica y color de graficado |
-| `amp_ext/fase_ext`, `amp_gros/fase_gros` | Amplitudes/fases de los armónicos de Fourier del frente y del grosor |
-| `asimetria` | Factor de asimetría este-oeste del perfil angular |
-| `ang_fil`, `amp_fil`, `ancho_fil` | Posición, amplitud y ancho angular de los filamentos de densidad realzada |
 
 | Método | Descripción |
 |---|---|
@@ -63,39 +59,26 @@ Genera el contorno deformado (frente/retaguardia) y el campo de velocidad unitar
 |---|---|
 | `t_nac`, `r_nac`, `v_nac`, `d_nac` | Instante, radio, velocidad y densidad de nucleación (heredados del clúster de solapamiento) |
 | `theta_centro`, `apertura_angular`, `grosor_frac` | Geometría angular fija, fijada al nacer |
-| `theta_puntos`, `r_puntos` | Nube de puntos del clúster real de solapamiento (define la forma, vía `cKDTree`) |
-| `gamma_drag` | Coeficiente de arrastre tipo DBM ($\gamma$) |
-
-| Método | Descripción |
-|---|---|
-| `radio(t)` | Solución analítica del modelo de arrastre (Vršnak et al.): $r(t)=r_{nac}+\dfrac{1}{\gamma}\ln\big(1+\gamma\, \Delta v\, \Delta t\big)$, relajando hacia `V_VIENTO_SOLAR` |
-| `velocidad(t)` | Derivada de la solución anterior |
-| `densidad(TH,R,t)` | Densidad que decae como $1/r^2$ (expansión geométrica) sobre la máscara de puntos heredada |
-
-No vacía densidad de las CMEs de las que proviene: solo *añade* la suya (evita doble conteo/creación de masa negativa).
+| `theta_puntos`, `r_puntos` | Nube de puntos del clúster real de solapamiento |
 
 ## 4. Funciones clave de interacción
 
 | Función | Rol físico |
 |---|---|
-| `radio_inter(r1,r2,v1,v2)` | Radio de contacto estimado entre dos frentes que se aproximan |
-| `fi_inter(v1,v2)` | Factor de intensificación de densidad en la zona de choque, función de la velocidad relativa |
-| `v_pond(d1,d2,v1,v2)` | Velocidad de la zona combinada, promedio ponderado por densidad (~conservación de momento) |
-| `densidad_solapada(ci1,ci2,sol)` | Densidad en la región de solapamiento: $\dfrac{\rho_1^2+\rho_2^2}{\rho_1+\rho_2}\times$ `FACTOR_COMPRESION` (evita suma aritmética no física) |
+| `v_pond(d1,d2,v1,v2)` | Velocidad de la zona combinada, promedio ponderado por densidad |
+| `densidad_solapada(ci1,ci2,sol)` | Densidad en la región de solapamiento: $\dfrac{\rho_1^2+\rho_2^2}{\rho_1+\rho_2}\times$ |
 | `geometria_sol(sol_mask,...)` | Extrae centro angular, apertura y grosor del clúster real de solapamiento, para nuclear una `CMENueva` con esa forma |
 | `calc_campos` | Ensambla el campo de densidad total combinando zonas exclusivas de cada CME y la zona de solapamiento |
-| `detectar_y_registrar` | Decide si el solapamiento es suficientemente denso y persistente como para nuclear una nueva CME, y la registra sin duplicar (`ya_existe`) |
+| `detectar_y_registrar` | Decide si el solapamiento es suficientemente denso y persistente como para nuclear una nueva CME, y la registra sin duplicar |
 
 ## 5. Variables de código (cinemática y grillas)
 
 | Variable | Significado |
 |---|---|
 | `tiempos`, `tiempos_h` | Vector temporal de cálculo (s y h) |
-| `pos1, vel1, acel1` / `pos2, vel2, acel2` | Series cinemáticas de CME-1/CME-2, obtenidas integrando `aceleracion` con `cumulative_trapezoid` (doble integración: a→v→x) |
-| `rex1, rin1` / `rex2, rin2` | Series de radio de frente/retaguardia (frontal ángulo 0°) a lo largo del tiempo |
+| `pos1, vel1, acel1` / `pos2, vel2, acel2` | Fases de propagación de CME-1/CME-2, obtenidas integrando `aceleracion` |
 | `t_centros`, `pos_centros` | Instante y posición donde se cruzan los **centros** (posiciones) de ambas CMEs |
 | `t_extensiones`, `pos_extensiones` | Instante y posición donde el frente de CME-2 alcanza la retaguardia de CME-1 (primer contacto físico real) |
-| `TH_G, R_G` / `TH_D, R_D` / `THv_G, Rv_G` | Mallas polares $(\theta,r)$: densidad global de alta resolución, densidad para detección, y vectores de velocidad (más gruesa) |
 | `t_frames`, `idx_mostrar` | Instantes de cálculo de la propagación polar y subconjunto de 8 que se grafican como paneles |
 | `cmes_nuevas` | Lista acumulativa de objetos `CMENueva` detectados durante la simulación |
 | `DMIN`, `DMAX` | Rango de la escala de color en $\log_{10}(\rho)$ |
@@ -111,8 +94,8 @@ No vacía densidad de las CMEs de las que proviene: solo *añade* la suya (evita
 
 ## 7. Notas de uso
 
-- Los parámetros de `cme1`/`cme2` (`tr, td, ar, ad, v0, x0, R0`) y `RETRASO_CME2` definen completamente el caso de estudio; cambiarlos reproduce distintos escenarios de interacción (p. ej. Caso 1 / Caso 2 de la tesis).
-- `FACTOR_COMPRESION` y `gamma_drag` son los parámetros libres más sensibles del modelo de interacción y del arrastre post-fusión, respectivamente.
+- Los parámetros de `cme1`/`cme2` (`tr, td, ar, ad, v0, x0, R0`), `RETRASO_CME2` y `semilla1`/`semilla2` definen completamente el caso de estudio; cambiarlos reproduce distintos escenarios de interacción.
+
 
 
 # Sobre cinemática_CMEs_conjuntas_interactivo.py
@@ -122,9 +105,9 @@ No vacía densidad de las CMEs de las que proviene: solo *añade* la suya (evita
 Es una **herramienta interactiva de exploración**, no una simulación espacial de campos (a diferencia de `CME_combinadas.py`). Grafica en tiempo real $a(t)$, $v(t)$, $x(t)$ de dos cuerpos (dos CMEs) bajo el mismo modelo cinemático de dos fases, con controles en pantalla (`TextBox`, `Button`, `RadioButtons`) para variar sus parámetros y ver de inmediato el efecto.
 
 Su uso principal en la tesis es:
-- **Visualizar los perfiles cinemáticos** ($a$, $v$, $x$) de dos CMEs candidatas antes de fijarlas en la simulación completa, ajustando $a_r,\tau_r,a_d,\tau_d,v_0,x_0$ por ensayo-error hasta reproducir un caso observado.
+- **Visualizar los perfiles cinemáticos** ($a$, $v$, $x$) de dos CMEs candidatas antes de fijarlas en la simulación completa, ajustando $a_r,\tau_r,a_d,\tau_d,v_0,x_0$ por ensayo-error hasta reproducir una interacción.
 - **Buscar umbrales de interacción**: activando el "auto-ajuste de $T_{max}$", el propio programa extiende la ventana temporal hasta encontrar la primera intersección de posiciones $x_1(t)=x_2(t)$, marcándola con el instante, la distancia (km/AU) y el punto en la curva. Esto permite explorar rápidamente qué combinaciones de parámetros (o qué retraso `t_offset` entre ambas) producen o no un cruce de trayectorias, y en qué momento.
-- Exportar/cargar configuraciones de parámetros en CSV, para guardar casos de interés (p. ej. los que luego se llevan a `CME_combinadas.py` como Caso 1 / Caso 2).
+- Exportar/cargar configuraciones de parámetros en CSV, para guardar casos de interés.
 
 No calcula densidad, morfología angular ni deformación de perfiles espaciales: es el laboratorio 1D (cinemática pura) que precede a la simulación 2D polar completa.
 
@@ -133,8 +116,6 @@ No calcula densidad, morfología angular ni deformación de perfiles espaciales:
 Mismo modelo de aceleración de dos fases que `CME_combinadas.py`:
 
 $$a(t) = \left[\frac{1}{a_r\, e^{t/\tau_r}} + \frac{1}{a_d\, e^{-t/\tau_d}}\right]^{-1}$$
-
-Aquí escrita en forma de resistencias en paralelo (equivalente a la forma usada en `CME_combinadas.py`). Integración por **RK4** (Runge-Kutta 4º orden) vectorizado: como $a(t)$ no depende del estado (solo del tiempo), $k_3=k_2$ y el esquema se reduce a Simpson compuesto para $v(t)$, y a la regla del trapecio con velocidad media para $x(t)$.
 
 ## 2. Parámetros y constantes físicas
 
@@ -149,36 +130,13 @@ Aquí escrita en forma de resistencias en paralelo (equivalente a la forma usada
 | `KM2AU`, `KM2RSOL` | Conversión de posición a UA y a radios solares | — |
 | `KM2M_S2` | Conversión de aceleración km/s² → m/s² (para graficar) | — |
 
-## 3. Variables/estructuras de código clave
-
-| Variable | Rol |
-|---|---|
-| `N = 1500` | Nº de pasos temporales del RK4 |
-| `DEFAULTS` | Diccionarios con los parámetros iniciales de "Cuerpo 1" y "Cuerpo 2" |
-| `params` | Copia editable de `DEFAULTS`; se actualiza en vivo desde los `TextBox` |
-| `FIELDS`, `LABELS`, `UNITS` | Listas paralelas que generan dinámicamente las filas de controles (`ar,tr,ad,td,v0,x0`) |
-| `visible` | Flags `[bool, bool]` para mostrar/ocultar cada cuerpo (botones "Ocultar/Mostrar") |
-| `state` | Diccionario de estado global: `T_max` (efectivo), `t_max_usuario` (el fijado manualmente), `offset_s`, `offset_on` (a cuál cuerpo se aplica el retardo), `auto_tmax` (activa el ajuste automático) |
-| `data[idx]` | Tupla `(t_s, a, v, x)` cruda resultante de `integrar()` para cada cuerpo |
-| `data_cache[idx]` | Misma información con unidades ya convertidas (h, m/s²), para no recalcular en cada `render()` |
-| `_a(t, ar, tr, ad, td)` | Función vectorizada de $a(t)$ |
-| `integrar(...)` | Integrador RK4; devuelve tiempo absoluto y series $a,v,x$ desde `t0` hasta `T_max` |
-| `primera_interseccion(t1,x1,t2,x2)` | Encuentra por interpolación lineal el primer cruce $x_1(t)=x_2(t)$ → **umbral de interacción** |
-| `calc_t_max_dynamic()` | Si el auto-ajuste está activo y ambos cuerpos son visibles, extiende `T_max` a `1.1×t_interseccion` |
-| `recalc_all_with_dynamic_tmax()` | Reintegra ambos cuerpos y aplica el `T_max` dinámico sin desfases |
-| `render()` | Redibuja las 3 curvas, el punto de 95% $v_{max}$, el marcador de intersección y reescala los ejes |
-| `lines`, `dot_vm`, `dot_inter` | Objetos `Line2D` reutilizados (se actualizan con `set_data`, no se recrean) |
-| `textboxes[idx]` | Lista de `TextBox` (uno por campo) de cada cuerpo, para edición en vivo de parámetros |
-| `btn_vis`, `btn_auto`, `btn_exp`, `btn_load`, `btn_rst` | Botones de visibilidad, auto-ajuste de $T_{max}$, exportar/cargar CSV y reset a `DEFAULTS` |
-| `radio` | `RadioButtons` para elegir a qué cuerpo se aplica `t_offset` |
-
-## 4. Indicadores mostrados en pantalla
+## 3. Indicadores mostrados en pantalla
 
 - $a(0)$ y $v(0)$ de cada cuerpo.
 - Punto y valor del **95% de $v_{max}$** (criterio usado en la tesis para marcar el fin de la fase de aceleración).
 - Marcador `★` con tiempo, posición en km y en AU de la **primera intersección de posiciones** entre los dos cuerpos (umbral de interacción cinemática).
 
-## 5. Entradas/salidas
+## 4. Entradas/salidas
 
 - **Entrada**: parámetros editados directamente en los `TextBox`, o cargados desde un CSV previamente exportado.
 - **Salida**: `dos_cuerpos_{timestamp}.csv` — únicamente los parámetros (no las series), para que el caso sea reproducible al recargarlo o al trasladarlo a `CME_combinadas.py`.
