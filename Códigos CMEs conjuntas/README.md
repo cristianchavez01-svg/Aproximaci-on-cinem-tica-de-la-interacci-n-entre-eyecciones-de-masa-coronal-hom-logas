@@ -115,7 +115,7 @@ No vacía densidad de las CMEs de las que proviene: solo *añade* la suya (evita
 - `FACTOR_COMPRESION` y `gamma_drag` son los parámetros libres más sensibles del modelo de interacción y del arrastre post-fusión, respectivamente.
 
 
-# Sobre CMEs_interactivo.py
+# Sobre cinemática_CMEs_conjuntas_interactivo.py
 
 ## ¿Para qué se usa?
 
